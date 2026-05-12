@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard AI — Email Threat Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080b12;--bg2:#0d1117;--bg3:#161b22;--bg4:#1c2330;
+  --accent:#00d4aa;--red:#ff4757;--yellow:#ffd32a;--blue:#2f86eb;
+  --text:#e6edf3;--muted:#7d8590;--border:#30363d;
+  --card:#0d1117;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;line-height:1.6}
+header{border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;background:var(--bg2)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;border-radius:6px}
+.logo-text{font-family:'Space Mono',monospace;font-weight:700;font-size:1rem;color:var(--accent)}
+.logo-sub{font-size:0.7rem;color:var(--muted);margin-top:1px}
+.status-badge{display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--accent);background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.2);padding:4px 10px;border-radius:20px}
+.status-dot{width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+main{max-width:1100px;margin:0 auto;padding:2rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.panel-header{padding:0.9rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted)}
+.panel-header i{font-size:14px}
+
+textarea{width:100%;background:transparent;border:none;color:var(--text);font-family:'Space Mono',monospace;font-size:0.78rem;line-height:1.8;padding:1.2rem;resize:none;outline:none;min-height:280px}
+textarea::placeholder{color:var(--muted)}
+
+.actions{padding:1rem 1.2rem;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center}
+.btn{padding:8px 18px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;font-family:'Inter',sans-serif}
+.btn-primary{background:var(--accent);color:#080b12}
+.btn-primary:hover{background:#00bfa0;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text)}
+.samples{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.sample-btn{padding:4px 10px;font-size:0.68rem;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Inter',sans-serif;transition:all 0.2s}
+.sample-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* RESULTS */
+.result-area{padding:1.2rem;min-height:280px;display:flex;flex-direction:column;gap:1rem}
+.verdict-card{border-radius:8px;padding:1rem 1.2rem;border:1px solid}
+.verdict-phishing{background:rgba(255,71,87,0.08);border-color:rgba(255,71,87,0.3)}
+.verdict-safe{background:rgba(0,212,170,0.08);border-color:rgba(0,212,170,0.3)}
+.verdict-suspicious{background:rgba(255,211,42,0.08);border-color:rgba(255,211,42,0.3)}
+.verdict-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.verdict-label{font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.verdict-phishing .verdict-label{color:var(--red)}
+.verdict-safe .verdict-label{color:var(--accent)}
+.verdict-suspicious .verdict-label{color:var(--yellow)}
+.score-ring{position:relative;display:flex;align-items:center}
+.score-num{font-family:'Space Mono',monospace;font-size:1.5rem;font-weight:700}
+.score-label{font-size:0.65rem;color:var(--muted);margin-left:4px;margin-top:4px}
+.verdict-text{font-size:0.8rem;color:var(--muted);line-height:1.6}
+
+/* HIGHLIGHTED EMAIL */
+.highlighted-text{font-family:'Space Mono',monospace;font-size:0.73rem;line-height:1.9;white-space:pre-wrap;word-break:break-word}
+.hl-red{background:rgba(255,71,87,0.2);border-bottom:2px solid var(--red);padding:0 2px;border-radius:2px;cursor:help;position:relative}
+.hl-yellow{background:rgba(255,211,42,0.15);border-bottom:2px solid var(--yellow);padding:0 2px;border-radius:2px;cursor:help}
+.hl-blue{background:rgba(47,134,235,0.15);border-bottom:2px solid var(--blue);padding:0 2px;border-radius:2px;cursor:help}
+
+/* FLAGS */
+.flags-list{display:flex;flex-direction:column;gap:6px}
+.flag-item{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);font-size:0.75rem}
+.flag-sev{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.flag-sev-high{background:var(--red)}
+.flag-sev-med{background:var(--yellow)}
+.flag-sev-low{background:var(--blue)}
+.flag-text{color:var(--text);line-height:1.5}
+.flag-cat{font-size:0.62rem;color:var(--muted);margin-top:2px}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.stat-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1rem}
+.stat-val{font-family:'Space Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--accent)}
+.stat-lbl{font-size:0.68rem;color:var(--muted);margin-top:2px}
+
+/* LEGEND */
+.legend{display:flex;gap:1rem;padding:0.8rem 1.2rem;border-top:1px solid var(--border);font-size:0.68rem;color:var(--muted)}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-dot{width:10px;height:3px;border-radius:2px}
+
+/* LOADING */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:3rem;color:var(--muted);font-size:0.8rem}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border)}
+.tab{padding:0.7rem 1.2rem;font-size:0.75rem;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all 0.2s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif}
+.tab.active{border-bottom-color:var(--accent);color:var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* HISTORY */
+.history-item{padding:0.8rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 0.15s}
+.history-item:hover{background:var(--bg3)}
+.hist-badge{font-size:0.62rem;padding:2px 7px;border-radius:3px;font-weight:700;text-transform:uppercase}
+.hist-phishing{background:rgba(255,71,87,0.15);color:var(--red)}
+.hist-safe{background:rgba(0,212,170,0.15);color:var(--accent)}
+.hist-suspicious{background:rgba(255,211,42,0.15);color:var(--yellow)}
+.hist-preview{font-size:0.75rem;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-score{font-family:'Space Mono',monospace;font-size:0.8rem;font-weight:700}
+
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;color:var(--muted);font-size:0.8rem;gap:8px;text-align:center}
+.empty-icon{font-size:2rem;opacity:0.3}
+
+footer{text-align:center;padding:1.5rem;font-size:0.7rem;color:var(--muted);border-top:1px solid var(--border);margin-top:2rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛡</div>
+    <div>
+      <div class="logo-text">PhishGuard AI</div>
+      <div class="logo-sub">Email Threat Intelligence</div>
+    </div>
+  </div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    AI Engine Online
+  </div>
+</header>
+
+<main>
+  <div class="stats-row" id="statsRow">
+    <div class="stat-box"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Emails Analyzed</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--red)" id="s-phish">0</div><div class="stat-lbl">Phishing Detected</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--yellow)" id="s-susp">0</div><div class="stat-lbl">Suspicious</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--accent)" id="s-safe">0</div><div class="stat-lbl">Safe</div></div>
+  </div>
+
+  <div class="grid">
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <div class="panel-header">📧 Email Input</div>
+      <textarea id="emailInput" placeholder="Paste the full email here — headers, body, links, everything...
+
+Example:
+From: security@paypa1.com
+Subject: URGENT: Verify your account now!
+
+Dear Customer,
+Your PayPal account has been limited. Click here to restore access immediately:
+http://paypal-verify.suspicious-domain.ru/login
+
+Failure to verify within 24 hours will result in permanent account suspension."></textarea>
+      <div class="actions">
+        <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeEmail()">🔍 Analyze Email</button>
+        <button class="btn btn-ghost" onclick="clearInput()">Clear</button>
+        <div class="samples">
+          <button class="sample-btn" onclick="loadSample('phishing')">Phishing sample</button>
+          <button class="sample-btn" onclick="loadSample('safe')">Safe sample</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS PANEL -->
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('verdict')">Verdict</button>
+        <button class="tab" onclick="switchTab('highlighted')">Highlighted Email</button>
+        <button class="tab" onclick="switchTab('flags')">Threat Flags</button>
+        <button class="tab" onclick="switchTab('history')">History</button>
+      </div>
+
+      <div class="tab-content active" id="tab-verdict">
+        <div class="result-area" id="verdictArea">
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <div>Paste an email and hit Analyze</div>
+            <div style="font-size:0.7rem">The AI will classify it and explain exactly why</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-highlighted">
+        <div class="result-area" id="highlightedArea">
+          <div class="empty-state"><div class="empty-icon">📄</div><div>Analysis will highlight suspicious phrases here</div></div>
+        </div>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div> High risk</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div> Medium risk</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div> Notable</div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-flags">
+        <div class="result-area" id="flagsArea">
+          <div class="empty-state"><div class="empty-icon">🚩</div><div>Threat flags will appear here after analysis</div></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-history">
+        <div id="historyList">
+          <div class="empty-state" style="padding:2rem"><div class="empty-icon">📋</div><div>No scans yet in this session</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>PhishGuard AI · Built by Harshith PM · Powered by Claude AI · NLP-based threat classification</footer>
+
+<script>
+const SAMPLES = {
+  phishing: `From: security-alert@paypa1-verify.com
+To: user@gmail.com
+Subject: ⚠️ URGENT: Your PayPal account has been SUSPENDED - Action Required
+
+Dear Valued Customer,
+
+We have detected suspicious activity on your PayPal account. Your account has been temporarily suspended to protect you.
+
+To restore your account access IMMEDIATELY, you must verify your information within 24 hours or your account will be PERMANENTLY CLOSED.
+
+Click here to verify now: http://paypal-secure-login.ru/verify?token=abc123
+
+You will need to provide:
+- Full name and date of birth
+- Credit card number and CVV
+- Social Security Number
+- Bank account details
+
+If you do not verify within 24 hours, we will be forced to permanently close your account and report it to the authorities.
+
+DO NOT IGNORE THIS MESSAGE.
+
+PayPal Security Team
+PayPal Inc, 2211 North First Street, San Jose, CA`,
+
+  safe: `From: newsletter@github.com
+To: harshith@email.com
+Subject: GitHub Digest — Your weekly summary
+
+Hi Harshith,
+
+Here's what happened this week on GitHub:
+
+New releases you might be interested in:
+- pytorch/pytorch v2.3.0 — Performance improvements and new ops
+- huggingface/transformers v4.40.0 — New model support
+
+Your repositories had 12 stars and 3 forks this week. 
+
+Check out trending repositories in Python: https://github.com/trending/python
+
+Thanks for being part of the GitHub community!
+
+The GitHub Team
+github.com | Unsubscribe | Privacy Policy`
+};
+
+let history = [];
+let stats = {total:0, phishing:0, suspicious:0, safe:0};
+
+function loadSample(type) {
+  document.getElementById('emailInput').value = SAMPLES[type];
+}
+
+function clearInput() {
+  document.getElementById('emailInput').value = '';
+  ['verdictArea','highlightedArea','flagsArea'].forEach(id => {
+    document.getElementById(id).innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div>Paste an email and hit Analyze</div></div>';
+  });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['verdict','highlighted','flags','history'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+async function analyzeEmail() {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) { alert('Please paste an email to analyze.'); return; }
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyzing...';
+
+  ['verdictArea','highlightedArea','flagsArea'].forEach(id => {
+    document.getElementById(id).innerHTML = '<div class="loading"><div class="spinner"></div><div>AI analyzing email patterns...</div></div>';
+  });
+
+  const prompt = `You are PhishGuard AI, an expert email security analyst. Analyze this email and respond ONLY with valid JSON (no markdown, no extra text).
+
+EMAIL TO ANALYZE:
+${email}
+
+Respond with this exact JSON structure:
+{
+  "verdict": "PHISHING" or "SUSPICIOUS" or "SAFE",
+  "confidence": 0-100 (integer),
+  "risk_score": 0-100 (integer),
+  "summary": "2-3 sentence plain English explanation of why this verdict was reached",
+  "flags": [
+    {"severity": "HIGH" or "MEDIUM" or "LOW", "category": "category name", "description": "specific thing found in this email"},
+    ...up to 6 flags
+  ],
+  "highlighted_spans": [
+    {"text": "exact phrase from email", "risk": "HIGH" or "MEDIUM" or "LOW", "reason": "why this is suspicious"},
+    ...up to 8 spans
+  ],
+  "technical_indicators": {
+    "suspicious_urls": ["list of suspicious URLs found"],
+    "urgency_language": true or false,
+    "impersonation": true or false,
+    "requests_credentials": true or false,
+    "sender_mismatch": true or false
+  }
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{role:'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content[0].text.trim();
+    const json = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    renderResults(json, email);
+  } catch(e) {
+    ['verdictArea','highlightedArea','flagsArea'].forEach(id => {
+      document.getElementById(id).innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><div>Analysis failed: ${e.message}</div></div>`;
+    });
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🔍 Analyze Email';
+}
+
+function renderResults(d, originalEmail) {
+  // Update stats
+  stats.total++;
+  if (d.verdict==='PHISHING') stats.phishing++;
+  else if (d.verdict==='SUSPICIOUS') stats.suspicious++;
+  else stats.safe++;
+  document.getElementById('s-total').textContent = stats.total;
+  document.getElementById('s-phish').textContent = stats.phishing;
+  document.getElementById('s-susp').textContent = stats.suspicious;
+  document.getElementById('s-safe').textContent = stats.safe;
+
+  const cls = d.verdict==='PHISHING' ? 'phishing' : d.verdict==='SAFE' ? 'safe' : 'suspicious';
+  const icon = d.verdict==='PHISHING' ? '🚨' : d.verdict==='SAFE' ? '✅' : '⚠️';
+  const scoreColor = d.verdict==='PHISHING' ? 'var(--red)' : d.verdict==='SAFE' ? 'var(--accent)' : 'var(--yellow)';
+
+  // VERDICT TAB
+  const indicators = d.technical_indicators || {};
+  const indHtml = Object.entries(indicators).map(([k,v]) => {
+    if (Array.isArray(v)) return v.length ? `<div class="flag-item"><div class="flag-sev flag-sev-high"></div><div><div class="flag-text">${k.replace(/_/g,' ')}: ${v.join(', ')}</div></div></div>` : '';
+    const active = v === true;
+    return `<div class="flag-item"><div class="flag-sev" style="background:${active?'var(--red)':'var(--accent)'}"></div><div class="flag-text">${k.replace(/_/g,' ')}: <strong>${v}</strong></div></div>`;
+  }).join('');
+
+  document.getElementById('verdictArea').innerHTML = `
+    <div class="verdict-card verdict-${cls}">
+      <div class="verdict-top">
+        <div class="verdict-label">${icon} ${d.verdict}</div>
+        <div class="score-ring">
+          <span class="score-num" style="color:${scoreColor}">${d.risk_score}</span>
+          <span class="score-label">/ 100<br>risk</span>
+        </div>
+      </div>
+      <div class="verdict-text">${d.summary}</div>
+      <div style="margin-top:10px;font-size:0.7rem;color:var(--muted)">AI Confidence: <strong style="color:${scoreColor}">${d.confidence}%</strong></div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-top:4px">Technical Indicators</div>
+    <div class="flags-list">${indHtml}</div>`;
+
+  // HIGHLIGHTED TAB
+  let highlighted = originalEmail;
+  const spans = (d.highlighted_spans || []).sort((a,b) => b.text.length - a.text.length);
+  spans.forEach(s => {
+    const riskClass = s.risk==='HIGH' ? 'hl-red' : s.risk==='MEDIUM' ? 'hl-yellow' : 'hl-blue';
+    const escaped = s.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    try {
+      highlighted = highlighted.replace(new RegExp(escaped,'g'), `<span class="${riskClass}" title="${s.reason}">${s.text}</span>`);
+    } catch(e){}
+  });
+  document.getElementById('highlightedArea').innerHTML = `<div class="highlighted-text">${highlighted}</div>`;
+
+  // FLAGS TAB
+  const flagsHtml = (d.flags||[]).map(f => `
+    <div class="flag-item">
+      <div class="flag-sev flag-sev-${f.severity.toLowerCase()}"></div>
+      <div>
+        <div class="flag-text">${f.description}</div>
+        <div class="flag-cat">${f.severity} · ${f.category}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('flagsArea').innerHTML = `<div class="flags-list">${flagsHtml || '<div class="empty-state"><div>No specific flags</div></div>'}</div>`;
+
+  // HISTORY
+  history.unshift({verdict: d.verdict, score: d.risk_score, preview: originalEmail.substring(0,80)+'...', result: d, email: originalEmail});
+  renderHistory();
+
+  switchTab('verdict');
+}
+
+function renderHistory() {
+  if (!history.length) return;
+  document.getElementById('historyList').innerHTML = history.map((h,i) => `
+    <div class="history-item" onclick="reloadHistory(${i})">
+      <span class="hist-badge hist-${h.verdict.toLowerCase()}">${h.verdict}</span>
+      <span class="hist-preview">${h.preview}</span>
+      <span class="hist-score" style="color:${h.verdict==='PHISHING'?'var(--red)':h.verdict==='SAFE'?'var(--accent)':'var(--yellow)'}">${h.score}</span>
+    </div>`).join('');
+}
+
+function reloadHistory(i) {
+  document.getElementById('emailInput').value = history[i].email;
+  renderResults(history[i].result, history[i].email);
+}
+</script>
+</body>
+</html>
