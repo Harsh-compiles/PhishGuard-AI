@@ -19,7 +19,7 @@ Most phishing detectors are black boxes. PhishGuard AI works like an AI security
 
 ## 🚀 Live Demo
 
-👉 [**Try it live →**](https://Harsh-compiles.github.io/Phishguard-AI)
+👉 [**Try it live →**](https://harsh-compiles.github.io/PhishGuard-AI/)
 
 ---
 
